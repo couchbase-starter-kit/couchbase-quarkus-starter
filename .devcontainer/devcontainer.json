@@ -1,0 +1,26 @@
+{
+    "name": "Couchbase Java Workspace",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "github.vscode-github-actions"
+            ]
+        }
+    },
+    "remoteEnv": {
+        "SPRING_COUCHBASE_CONNECTION_STRING": "${containerEnv:COUCHBASE_CONNECTION_STRING}",
+        "SPRING_COUCHBASE_USERNAME": "${containerEnv:COUCHBASE_USERNAME}",
+        "SPRING_COUCHBASE_PASSWORD": "${containerEnv:COUCHBASE_PASSWORD}"
+    },
+	"features": {
+		"ghcr.io/devcontainers/features/java:1": {
+			"version": "17",
+			"installMaven": "true",
+			"installGradle": "false"
+		},
+        "ghcr.io/couchbase-starter-kit/devcontainer-features/couchbase-server": {"version": "7.6.3"},
+        "ghcr.io/couchbase-starter-kit/devcontainer-features/couchbase-shell": {"version": "1.0.0"},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	}
+}
