@@ -10,7 +10,7 @@ tasks:
       eval $(gp env -e)
     command: |
       gp await-port 8091
-      cbsh -c "source ./scripts/dbSetup.nu; dbSetup $COUCHBASE_DEFAULT_BUCKET $COUCHBASE_DEFAULT_SCOPE $COUCHBASE_DEFAULT_COLLECTION"
+      mvn quarkus:dev
 
 # PreInstalled Couchbase and Java Extension
 vscode:
