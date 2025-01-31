@@ -2,11 +2,15 @@ package org.acme;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
+import java.util.function.Supplier;
 
 import org.jboss.resteasy.reactive.server.core.LazyResponse.Existing;
 
 import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.ClusterOptions;
+import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.kv.ExistsResult;
 import com.couchbase.client.java.kv.GetResult;
@@ -23,12 +27,12 @@ import jakarta.ws.rs.core.MediaType;
 import mutiny.zero.flow.adapters.AdaptersToFlow;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 @Path("/hello")
 public class GreetingResource {
     @Inject
     Cluster cluster;
-
 
     @GET
     @Path("/exist")
@@ -126,6 +130,55 @@ public class GreetingResource {
             })
             .map(x -> "success!!")
             .emitOn(r -> context.runOnContext(r))
+            .log();
+    }
+
+    
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    @Path("/env")
+    public Uni<String> asyncHelloEnv() {
+        // testing new scheduler option`
+        ClusterEnvironment clusterEnvironment = 
+            ClusterEnvironment.builder().publishOnScheduler(() -> {
+                var context = Vertx.currentContext();
+                Scheduler scheduler = Schedulers.fromExecutor(new Executor() {
+                    @Override
+                    public void execute(Runnable command) {
+                        context.runOnContext(command);
+                    }
+                    
+                });
+                
+                return scheduler;
+            }
+            ).build();
+
+        Cluster builtCluster = Cluster.connect("localhost", ClusterOptions.clusterOptions("Administrator", "password").environment(clusterEnvironment));
+
+        // Get a reference to a particular Couchbase bucket and its default collection
+        var bucket = builtCluster.bucket("travel-sample")
+        .async();
+        var collection = bucket.defaultCollection() ;
+
+        // Upsert a new document
+        var uni1 = Uni.createFrom().completionStage(
+            () -> collection.upsert("test", JsonObject.create().put("foo", "bar"))
+        );
+        var uni2 = Uni.createFrom().completionStage(() -> bucket.defaultCollection().get("test"))
+            .invoke(doc -> System.out.println("Got doc " + doc.contentAs(Map.class).toString()));
+        // Perform a N1QL query
+        var uni3 = Uni.createFrom().completionStage(() -> builtCluster.async().query("select * from `travel-sample` where url like 'http://marriot%' and country = 'United States';"));
+
+        return uni1
+            .flatMap(x -> uni2)
+            .flatMap(x -> uni3)
+            .invoke(x -> {
+                x.rowsAsObject().forEach(row -> {
+                    System.out.println(row);
+                });
+            })
+            .map(x -> "success!!")
             .log();
     }
 
